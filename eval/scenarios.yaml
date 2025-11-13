@@ -27,8 +27,8 @@ scenarios:
       - predicate: "len(itinerary.days) <= 7"
         description: "At most 7 days"
 
-  - scenario_id: budget_fail_stub
-    description: Plan exceeds budget (should fail)
+  - scenario_id: budget_violation_stub
+    description: Plan exceeds budget (predicate should fail)
     intent:
       city: Paris
       date_window:
@@ -44,5 +44,5 @@ scenarios:
         avoid_overnight: false
         locked_slots: []
     must_satisfy:
-      - predicate: "itinerary.cost_breakdown.total_usd_cents > intent.budget_usd_cents"
-        description: "Total cost exceeds budget (expected failure)"
+      - predicate: "itinerary.cost_breakdown.total_usd_cents <= intent.budget_usd_cents"
+        description: "Total cost within budget (will fail)"
