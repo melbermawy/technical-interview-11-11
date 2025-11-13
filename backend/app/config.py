@@ -11,10 +11,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # Database
+    database_url: str | None = None
     postgres_url: str = "postgresql://user:pass@localhost:5432/travel_planner"
 
     # Cache
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str | None = None
 
     # UI
     ui_origin: str = "http://localhost:8501"
@@ -56,6 +57,13 @@ class Settings(BaseSettings):
     ttfe_budget_ms: int = 800
     e2e_p50_budget_ms: int = 6000
     e2e_p95_budget_ms: int = 10000
+
+    # Rate limiting (requests per minute)
+    agent_runs_per_min: int = 5
+    crud_ops_per_min: int = 60
+
+    # Idempotency TTL (seconds)
+    idempotency_ttl_seconds: int = 24 * 3600
 
 
 @lru_cache
