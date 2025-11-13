@@ -30,7 +30,7 @@ def test_rate_limiter_blocks_over_quota() -> None:
     key = "test:key:bucket"
 
     # First 3 requests succeed
-    for i in range(3):
+    for _ in range(3):
         retry_after = limiter.check_quota(key, now)
         assert retry_after is None
 

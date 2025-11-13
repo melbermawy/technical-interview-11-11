@@ -65,6 +65,20 @@ class Settings(BaseSettings):
     # Idempotency TTL (seconds)
     idempotency_ttl_seconds: int = 24 * 3600
 
+    # Tool executor settings
+    tool_retry_count: int = 1
+    tool_breaker_failure_threshold: int = 5
+    tool_breaker_window_seconds: int = 60
+    tool_breaker_half_open_seconds: int = 30
+
+    # Tool cache TTLs (seconds)
+    weather_ttl_seconds: int = 24 * 3600
+    fx_ttl_seconds: int = 24 * 3600
+
+    # Health check
+    enable_outbound_healthcheck: bool = False
+    health_tool_timeout_ms: int = 500
+
 
 @lru_cache
 def get_settings() -> Settings:
