@@ -1,0 +1,298 @@
+{
+  "$defs": {
+    "Assumptions": {
+      "description": "Planning assumptions and constants.",
+      "properties": {
+        "fx_rate_usd_eur": {
+          "title": "Fx Rate Usd Eur",
+          "type": "number"
+        },
+        "daily_spend_est_cents": {
+          "title": "Daily Spend Est Cents",
+          "type": "integer"
+        },
+        "transit_buffer_minutes": {
+          "default": 15,
+          "title": "Transit Buffer Minutes",
+          "type": "integer"
+        },
+        "airport_buffer_minutes": {
+          "default": 120,
+          "title": "Airport Buffer Minutes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fx_rate_usd_eur",
+        "daily_spend_est_cents"
+      ],
+      "title": "Assumptions",
+      "type": "object"
+    },
+    "Choice": {
+      "description": "A single choice alternative with features.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ChoiceKind"
+        },
+        "option_ref": {
+          "title": "Option Ref",
+          "type": "string"
+        },
+        "features": {
+          "$ref": "#/$defs/ChoiceFeatures"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "kind",
+        "option_ref",
+        "features",
+        "provenance"
+      ],
+      "title": "Choice",
+      "type": "object"
+    },
+    "ChoiceFeatures": {
+      "description": "Extracted features from a choice (required for selector).",
+      "properties": {
+        "cost_usd_cents": {
+          "title": "Cost Usd Cents",
+          "type": "integer"
+        },
+        "travel_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Travel Seconds"
+        },
+        "indoor": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indoor"
+        },
+        "themes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Themes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cost_usd_cents"
+      ],
+      "title": "ChoiceFeatures",
+      "type": "object"
+    },
+    "ChoiceKind": {
+      "description": "Type of activity choice.",
+      "enum": [
+        "flight",
+        "lodging",
+        "attraction",
+        "transit",
+        "meal"
+      ],
+      "title": "ChoiceKind",
+      "type": "string"
+    },
+    "DayPlan": {
+      "description": "Plan for a single day.",
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "slots": {
+          "items": {
+            "$ref": "#/$defs/Slot"
+          },
+          "title": "Slots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "slots"
+      ],
+      "title": "DayPlan",
+      "type": "object"
+    },
+    "Provenance": {
+      "description": "Provenance metadata for tool results.",
+      "properties": {
+        "source": {
+          "enum": [
+            "tool",
+            "rag",
+            "user"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "ref_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Id"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "fetched_at": {
+          "format": "date-time",
+          "title": "Fetched At",
+          "type": "string"
+        },
+        "cache_hit": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Hit"
+        },
+        "response_digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Digest"
+        }
+      },
+      "required": [
+        "source",
+        "fetched_at"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Slot": {
+      "description": "Time slot with ranked choices.",
+      "properties": {
+        "window": {
+          "$ref": "#/$defs/TimeWindow"
+        },
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/Choice"
+          },
+          "minItems": 1,
+          "title": "Choices",
+          "type": "array"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "window",
+        "choices"
+      ],
+      "title": "Slot",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "description": "Time window in local time.",
+      "properties": {
+        "start": {
+          "format": "time",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "format": "time",
+          "title": "End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    }
+  },
+  "description": "Complete travel plan with days and assumptions.",
+  "properties": {
+    "days": {
+      "items": {
+        "$ref": "#/$defs/DayPlan"
+      },
+      "maxItems": 7,
+      "minItems": 4,
+      "title": "Days",
+      "type": "array"
+    },
+    "assumptions": {
+      "$ref": "#/$defs/Assumptions"
+    },
+    "rng_seed": {
+      "title": "Rng Seed",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "days",
+    "assumptions",
+    "rng_seed"
+  ],
+  "title": "PlanV1",
+  "type": "object"
+}

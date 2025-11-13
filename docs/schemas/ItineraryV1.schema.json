@@ -1,0 +1,465 @@
+{
+  "$defs": {
+    "Activity": {
+      "description": "Single activity in itinerary.",
+      "properties": {
+        "window": {
+          "$ref": "#/$defs/TimeWindow"
+        },
+        "kind": {
+          "$ref": "#/$defs/ChoiceKind"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "geo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Geo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "locked": {
+          "title": "Locked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "window",
+        "kind",
+        "name",
+        "geo",
+        "notes",
+        "locked"
+      ],
+      "title": "Activity",
+      "type": "object"
+    },
+    "ChoiceKind": {
+      "description": "Type of activity choice.",
+      "enum": [
+        "flight",
+        "lodging",
+        "attraction",
+        "transit",
+        "meal"
+      ],
+      "title": "ChoiceKind",
+      "type": "string"
+    },
+    "Citation": {
+      "description": "Citation linking claim to provenance.",
+      "properties": {
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "claim",
+        "provenance"
+      ],
+      "title": "Citation",
+      "type": "object"
+    },
+    "CostBreakdown": {
+      "description": "Cost breakdown by category.",
+      "properties": {
+        "flights_usd_cents": {
+          "title": "Flights Usd Cents",
+          "type": "integer"
+        },
+        "lodging_usd_cents": {
+          "title": "Lodging Usd Cents",
+          "type": "integer"
+        },
+        "attractions_usd_cents": {
+          "title": "Attractions Usd Cents",
+          "type": "integer"
+        },
+        "transit_usd_cents": {
+          "title": "Transit Usd Cents",
+          "type": "integer"
+        },
+        "daily_spend_usd_cents": {
+          "title": "Daily Spend Usd Cents",
+          "type": "integer"
+        },
+        "total_usd_cents": {
+          "title": "Total Usd Cents",
+          "type": "integer"
+        },
+        "currency_disclaimer": {
+          "title": "Currency Disclaimer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "flights_usd_cents",
+        "lodging_usd_cents",
+        "attractions_usd_cents",
+        "transit_usd_cents",
+        "daily_spend_usd_cents",
+        "total_usd_cents",
+        "currency_disclaimer"
+      ],
+      "title": "CostBreakdown",
+      "type": "object"
+    },
+    "DateWindow": {
+      "description": "Date range with timezone.",
+      "properties": {
+        "start": {
+          "format": "date",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "format": "date",
+          "title": "End",
+          "type": "string"
+        },
+        "tz": {
+          "description": "IANA timezone, e.g., 'Europe/Paris'",
+          "title": "Tz",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "tz"
+      ],
+      "title": "DateWindow",
+      "type": "object"
+    },
+    "DayItinerary": {
+      "description": "Itinerary for a single day.",
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "activities": {
+          "items": {
+            "$ref": "#/$defs/Activity"
+          },
+          "title": "Activities",
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "activities"
+      ],
+      "title": "DayItinerary",
+      "type": "object"
+    },
+    "Decision": {
+      "description": "Recorded decision with rationale.",
+      "properties": {
+        "node": {
+          "title": "Node",
+          "type": "string"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "alternatives_considered": {
+          "title": "Alternatives Considered",
+          "type": "integer"
+        },
+        "selected": {
+          "title": "Selected",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "rationale",
+        "alternatives_considered",
+        "selected"
+      ],
+      "title": "Decision",
+      "type": "object"
+    },
+    "Geo": {
+      "description": "Geographic coordinates (WGS84).",
+      "properties": {
+        "lat": {
+          "maximum": 90.0,
+          "minimum": -90.0,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180.0,
+          "minimum": -180.0,
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "Geo",
+      "type": "object"
+    },
+    "IntentV1": {
+      "description": "User intent for trip planning.",
+      "properties": {
+        "city": {
+          "title": "City",
+          "type": "string"
+        },
+        "date_window": {
+          "$ref": "#/$defs/DateWindow"
+        },
+        "budget_usd_cents": {
+          "exclusiveMinimum": 0,
+          "title": "Budget Usd Cents",
+          "type": "integer"
+        },
+        "airports": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Airports",
+          "type": "array"
+        },
+        "prefs": {
+          "$ref": "#/$defs/Preferences"
+        }
+      },
+      "required": [
+        "city",
+        "date_window",
+        "budget_usd_cents",
+        "airports",
+        "prefs"
+      ],
+      "title": "IntentV1",
+      "type": "object"
+    },
+    "LockedSlot": {
+      "description": "User-pinned activity slot.",
+      "properties": {
+        "day_offset": {
+          "description": "0-indexed from trip start",
+          "minimum": 0,
+          "title": "Day Offset",
+          "type": "integer"
+        },
+        "window": {
+          "$ref": "#/$defs/TimeWindow"
+        },
+        "activity_id": {
+          "title": "Activity Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "day_offset",
+        "window",
+        "activity_id"
+      ],
+      "title": "LockedSlot",
+      "type": "object"
+    },
+    "Preferences": {
+      "description": "User preferences and constraints.",
+      "properties": {
+        "kid_friendly": {
+          "default": false,
+          "title": "Kid Friendly",
+          "type": "boolean"
+        },
+        "themes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Themes",
+          "type": "array"
+        },
+        "avoid_overnight": {
+          "default": false,
+          "title": "Avoid Overnight",
+          "type": "boolean"
+        },
+        "locked_slots": {
+          "items": {
+            "$ref": "#/$defs/LockedSlot"
+          },
+          "title": "Locked Slots",
+          "type": "array"
+        }
+      },
+      "title": "Preferences",
+      "type": "object"
+    },
+    "Provenance": {
+      "description": "Provenance metadata for tool results.",
+      "properties": {
+        "source": {
+          "enum": [
+            "tool",
+            "rag",
+            "user"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "ref_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Id"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "fetched_at": {
+          "format": "date-time",
+          "title": "Fetched At",
+          "type": "string"
+        },
+        "cache_hit": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Hit"
+        },
+        "response_digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response Digest"
+        }
+      },
+      "required": [
+        "source",
+        "fetched_at"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "description": "Time window in local time.",
+      "properties": {
+        "start": {
+          "format": "time",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "format": "time",
+          "title": "End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    }
+  },
+  "description": "Complete itinerary output.",
+  "properties": {
+    "itinerary_id": {
+      "title": "Itinerary Id",
+      "type": "string"
+    },
+    "intent": {
+      "$ref": "#/$defs/IntentV1"
+    },
+    "days": {
+      "items": {
+        "$ref": "#/$defs/DayItinerary"
+      },
+      "title": "Days",
+      "type": "array"
+    },
+    "cost_breakdown": {
+      "$ref": "#/$defs/CostBreakdown"
+    },
+    "decisions": {
+      "items": {
+        "$ref": "#/$defs/Decision"
+      },
+      "title": "Decisions",
+      "type": "array"
+    },
+    "citations": {
+      "items": {
+        "$ref": "#/$defs/Citation"
+      },
+      "title": "Citations",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "trace_id": {
+      "title": "Trace Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "itinerary_id",
+    "intent",
+    "days",
+    "cost_breakdown",
+    "decisions",
+    "citations",
+    "created_at",
+    "trace_id"
+  ],
+  "title": "ItineraryV1",
+  "type": "object"
+}
