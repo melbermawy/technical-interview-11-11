@@ -14,14 +14,27 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from backend.app.db.models import Base
+from backend.app.db.models import Base  # noqa: E402
 
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# Get database URL from app settings (same source as the app)
+from backend.app.config import get_settings  # noqa: E402
+
+settings = get_settings()
+database_url = settings.database_url or settings.postgres_url
+
+# Convert async drivers to sync for Alembic
+# Alembic uses sync SQLAlchemy, so we need to normalize URLs
+if database_url.startswith("sqlite+aiosqlite://"):
+    # Convert sqlite+aiosqlite:///path to sqlite:///path
+    database_url = database_url.replace("sqlite+aiosqlite://", "sqlite://", 1)
+elif database_url.startswith("postgresql+asyncpg://"):
+    # Convert postgresql+asyncpg:// to postgresql://
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+# Override the ini file's placeholder URL with the real one
+config.set_main_option("sqlalchemy.url", database_url)
 
 
 def run_migrations_offline() -> None:
@@ -62,9 +75,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
