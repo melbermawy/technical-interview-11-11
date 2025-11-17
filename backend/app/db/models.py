@@ -144,7 +144,7 @@ class KnowledgeItem(Base):
         UUID(as_uuid=True), ForeignKey("destination.dest_id"), nullable=True
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -272,3 +272,31 @@ class Idempotency(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class RunEvent(Base):
+    """Run event table - tracks graph execution progress."""
+
+    __tablename__ = "run_event"
+    __table_args__ = (
+        Index("idx_run_event_run_ts", "run_id", "timestamp"),
+        Index("idx_run_event_run_seq", "run_id", "sequence"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agent_run.run_id"), nullable=False
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("org.org_id"), nullable=False
+    )
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    sequence: Mapped[int] = mapped_column(nullable=False)
+    node: Mapped[str] = mapped_column(Text, nullable=False)
+    phase: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
