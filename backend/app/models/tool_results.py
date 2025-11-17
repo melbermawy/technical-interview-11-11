@@ -77,3 +77,11 @@ class TransitLeg(BaseModel):
     duration_seconds: int
     last_departure: time | None = None
     provenance: Provenance
+
+
+class FXRate(BaseModel):
+    """Foreign exchange rate."""
+
+    rate: float
+    as_of: date
+    provenance: Provenance

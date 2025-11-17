@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     # External APIs
     weather_api_key: str = ""
+    weather_base_url: str = "https://api.open-meteo.com/v1/forecast"
+    weather_cache_ttl_seconds: int = 86400  # 24 hours
 
     # Graph orchestration
     fanout_cap: int = 4

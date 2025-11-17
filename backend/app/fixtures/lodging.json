@@ -1,0 +1,46 @@
+{
+  "paris": [
+    {
+      "lodging_id": "hotel_paris_budget_1",
+      "name": "Hotel de la Paix",
+      "geo": {"lat": 48.8566, "lon": 2.3522},
+      "checkin_window": {"start": "14:00:00", "end": "22:00:00"},
+      "checkout_window": {"start": "07:00:00", "end": "11:00:00"},
+      "price_per_night_usd_cents": 8500,
+      "tier": "budget",
+      "kid_friendly": true
+    },
+    {
+      "lodging_id": "hotel_paris_mid_1",
+      "name": "Hotel des Jardins",
+      "geo": {"lat": 48.8606, "lon": 2.3376},
+      "checkin_window": {"start": "15:00:00", "end": "23:00:00"},
+      "checkout_window": {"start": "07:00:00", "end": "12:00:00"},
+      "price_per_night_usd_cents": 15000,
+      "tier": "mid",
+      "kid_friendly": true
+    },
+    {
+      "lodging_id": "hotel_paris_luxury_1",
+      "name": "Le Grand Hotel",
+      "geo": {"lat": 48.8698, "lon": 2.3314},
+      "checkin_window": {"start": "15:00:00", "end": "00:00:00"},
+      "checkout_window": {"start": "06:00:00", "end": "12:00:00"},
+      "price_per_night_usd_cents": 35000,
+      "tier": "luxury",
+      "kid_friendly": false
+    }
+  ],
+  "london": [
+    {
+      "lodging_id": "hotel_london_budget_1",
+      "name": "The Budget Inn",
+      "geo": {"lat": 51.5074, "lon": -0.1278},
+      "checkin_window": {"start": "14:00:00", "end": "22:00:00"},
+      "checkout_window": {"start": "07:00:00", "end": "11:00:00"},
+      "price_per_night_usd_cents": 9000,
+      "tier": "budget",
+      "kid_friendly": true
+    }
+  ]
+}

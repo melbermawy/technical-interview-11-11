@@ -7,7 +7,7 @@ from uuid import UUID
 
 from backend.app.models.intent import IntentV1
 from backend.app.models.itinerary import Decision
-from backend.app.models.plan import PlanV1
+from backend.app.models.plan import Choice, PlanV1
 from backend.app.models.violations import Violation
 
 RunStatus = Literal["pending", "running", "succeeded", "failed", "cancelled"]
@@ -30,6 +30,9 @@ class GraphState:
     # Graph data (all optional during execution)
     intent: IntentV1 | None = None
     plan: PlanV1 | None = None
+    # Normalized candidate options (flight, lodging, attraction, transit, etc),
+    # each with ChoiceFeatures and Provenance attached
+    choices: list[Choice] | None = None
     violations: list[Violation] = field(default_factory=list)
     decisions: list[Decision] = field(default_factory=list)
 
