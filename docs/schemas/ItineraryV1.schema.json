@@ -316,11 +316,6 @@
       "description": "Provenance metadata for tool results.",
       "properties": {
         "source": {
-          "enum": [
-            "tool",
-            "rag",
-            "user"
-          ],
           "title": "Source",
           "type": "string"
         },

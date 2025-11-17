@@ -3,12 +3,12 @@
 All nodes are deterministic stubs that emit events but do not call LLMs or external APIs.
 """
 
-import uuid
 from datetime import date, datetime, time
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.run_events import append_run_event
+from backend.app.features.mapping import build_choice_features_for_itinerary
 from backend.app.models.common import ChoiceKind, Provenance
 from backend.app.models.intent import DateWindow, IntentV1, Preferences
 from backend.app.models.itinerary import Decision
@@ -217,6 +217,9 @@ async def selector_stub(state: GraphState, session: AsyncSession) -> GraphState:
             selected="branch_0",
         )
     )
+
+    # PR-5B: Minimal feature mapper wiring (stub call to prove it's callable)
+    state.choices = await build_choice_features_for_itinerary()
 
     await append_run_event(
         session,

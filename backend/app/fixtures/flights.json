@@ -1,0 +1,46 @@
+{
+  "JFK_CDG": [
+    {
+      "flight_id": "AF007",
+      "origin": "JFK",
+      "dest": "CDG",
+      "departure": "2025-12-01T19:00:00Z",
+      "arrival": "2025-12-02T08:30:00Z",
+      "duration_seconds": 27000,
+      "price_usd_cents": 45000,
+      "overnight": true
+    },
+    {
+      "flight_id": "DL411",
+      "origin": "JFK",
+      "dest": "CDG",
+      "departure": "2025-12-01T22:30:00Z",
+      "arrival": "2025-12-02T12:00:00Z",
+      "duration_seconds": 27000,
+      "price_usd_cents": 52000,
+      "overnight": true
+    }
+  ],
+  "CDG_JFK": [
+    {
+      "flight_id": "AF006",
+      "origin": "CDG",
+      "dest": "JFK",
+      "departure": "2025-12-08T10:30:00Z",
+      "arrival": "2025-12-08T13:00:00-05:00",
+      "duration_seconds": 28800,
+      "price_usd_cents": 48000,
+      "overnight": false
+    },
+    {
+      "flight_id": "DL412",
+      "origin": "CDG",
+      "dest": "JFK",
+      "departure": "2025-12-08T14:00:00Z",
+      "arrival": "2025-12-08T16:45:00-05:00",
+      "duration_seconds": 29700,
+      "price_usd_cents": 55000,
+      "overnight": false
+    }
+  ]
+}

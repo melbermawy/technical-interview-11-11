@@ -68,7 +68,7 @@ class ViolationKind(str, Enum):
 class Provenance(BaseModel):
     """Provenance metadata for tool results."""
 
-    source: Literal["tool", "rag", "user"]
+    source: str  # Tool-specific identifier (e.g., "tool.weather.open_meteo", "rag", "user")
     ref_id: str | None = None
     source_url: str | None = None
     fetched_at: datetime
