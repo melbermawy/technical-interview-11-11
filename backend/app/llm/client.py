@@ -11,6 +11,7 @@ from openai import AsyncOpenAI
 
 from backend.app.config import settings
 from backend.app.models.answer import AnswerV1
+from backend.app.models.docs import DocChunk
 from backend.app.models.intent import IntentV1
 from backend.app.models.plan import Choice
 from backend.app.models.violations import Violation
@@ -28,6 +29,7 @@ class LLMClient(Protocol):
         choices: list[Choice],
         violations: list[Violation],
         selector_logs: list[dict[str, object]],
+        doc_matches: list[DocChunk] | None = None,
     ) -> AnswerV1:
         """Generate natural language summary from graph state.
 
@@ -36,6 +38,7 @@ class LLMClient(Protocol):
             choices: Selected options (flights, lodging, attractions, etc)
             violations: Constraint violations found during verification
             selector_logs: Decision logs from selector node
+            doc_matches: Retrieved document chunks (PR-10B)
 
         Returns:
             AnswerV1 with markdown summary and extracted decisions
@@ -53,6 +56,7 @@ class DeterministicStubClient:
         choices: list[Choice],
         violations: list[Violation],
         selector_logs: list[dict[str, object]],
+        doc_matches: list[DocChunk] | None = None,
     ) -> AnswerV1:
         """Generate deterministic stub answer."""
         city = intent.city
@@ -96,10 +100,11 @@ class OpenAIClient:
         choices: list[Choice],
         violations: list[Violation],
         selector_logs: list[dict[str, object]],
+        doc_matches: list[DocChunk] | None = None,
     ) -> AnswerV1:
         """Generate answer using OpenAI API."""
         # Build context for LLM
-        context = self._build_context(intent, choices, violations, selector_logs)
+        context = self._build_context(intent, choices, violations, selector_logs, doc_matches)
 
         # Build system prompt
         system_prompt = self._build_system_prompt()
@@ -128,6 +133,7 @@ class OpenAIClient:
                     choices=choices,
                     violations=violations,
                     selector_logs=selector_logs,
+                    doc_matches=doc_matches,
                 )
 
             # Validation: Check for unreasonably long response
@@ -157,6 +163,7 @@ class OpenAIClient:
                 choices=choices,
                 violations=violations,
                 selector_logs=selector_logs,
+                doc_matches=doc_matches,
             )
 
     def _build_system_prompt(self) -> str:
@@ -182,7 +189,17 @@ CRITICAL CONSTRAINTS:
 - Respect the stated budget and any listed constraint violations; do not casually recommend
   spending far beyond budget.
 - When mentioning costs, use the exact amounts provided (e.g., "$99.50"), not rounded or
-  approximate phrasing like "about $100"."""
+  approximate phrasing like "about $100".
+
+ORGANIZATION DOCUMENTS:
+- If an "Organization Docs" section appears below, these are official company policies or
+  guidelines from the traveler's organization.
+- You MUST respect and incorporate these policies into your recommendations. For example,
+  if the org doc mentions "all flights must be economy class", ensure your itinerary
+  complies with this requirement.
+- When an org policy conflicts with the user's intent, acknowledge the conflict and explain
+  how the itinerary respects the policy.
+- Do NOT ignore or contradict organization policies."""
 
     def _build_context(
         self,
@@ -190,6 +207,7 @@ CRITICAL CONSTRAINTS:
         choices: list[Choice],
         violations: list[Violation],
         selector_logs: list[dict[str, object]],
+        doc_matches: list[DocChunk] | None = None,
     ) -> str:
         """Build context string for LLM from graph state."""
         lines = []
@@ -202,6 +220,17 @@ CRITICAL CONSTRAINTS:
         if intent.prefs and intent.prefs.themes:
             lines.append(f"- Preferred themes: {', '.join(intent.prefs.themes)}")
         lines.append("")
+
+        # Organization Docs section (PR-10B)
+        if doc_matches:
+            lines.append("## Organization Docs")
+            lines.append("Relevant policies and guidelines from the traveler's organization:")
+            lines.append("")
+            for chunk in doc_matches:
+                # Truncate long chunks for context efficiency
+                chunk_preview = chunk.text if len(chunk.text) <= 300 else chunk.text[:297] + "..."
+                lines.append(f"- {chunk_preview}")
+            lines.append("")
 
         # Choices section
         lines.append("## Selected Options")
@@ -278,6 +307,7 @@ async def synthesize_answer_with_openai(
     choices: list[Choice],
     violations: list[Violation],
     selector_logs: list[dict[str, object]],
+    doc_matches: list[DocChunk] | None = None,
 ) -> AnswerV1:
     """Main entry point for LLM synthesis.
 
@@ -286,6 +316,7 @@ async def synthesize_answer_with_openai(
         choices: Selected options
         violations: Constraint violations
         selector_logs: Decision logs
+        doc_matches: Retrieved document chunks (PR-10B)
 
     Returns:
         AnswerV1 with synthesized answer
@@ -296,4 +327,5 @@ async def synthesize_answer_with_openai(
         choices=choices,
         violations=violations,
         selector_logs=selector_logs,
+        doc_matches=doc_matches,
     )

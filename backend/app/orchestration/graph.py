@@ -13,6 +13,7 @@ from backend.app.models.intent import DateWindow, IntentV1, Preferences
 from backend.app.models.itinerary import Decision
 from backend.app.models.plan import Assumptions, Choice, ChoiceFeatures, DayPlan, PlanV1, Slot
 from backend.app.models.violations import ViolationSeverity
+from backend.app.orchestration.docs_node import docs_node
 from backend.app.orchestration.planner import plan_real
 from backend.app.orchestration.selector import select_best_choices
 from backend.app.orchestration.state import GraphState
@@ -51,6 +52,9 @@ async def run_graph_stub(state: GraphState, session: AsyncSession) -> GraphState
     if state.violations:
         state = await repair_stub(state, session)
 
+    # Node 6.5: Document retrieval (PR-10B)
+    state = await docs_node(state, session)
+
     # Node 7: Synthesizer (real LLM synthesis from PR-8A)
     state = await synth_node(state, session)
 
@@ -64,7 +68,10 @@ async def run_graph_stub(state: GraphState, session: AsyncSession) -> GraphState
 
 
 async def extract_intent_stub(state: GraphState, session: AsyncSession) -> GraphState:
-    """Stub intent extractor - creates minimal IntentV1 from hard-coded data."""
+    """Stub intent extractor - creates minimal IntentV1 from hard-coded data.
+
+    If state.intent is already set (e.g., from what-if derivation), preserve it.
+    """
     await append_run_event(
         session,
         run_id=state.run_id,
@@ -75,23 +82,24 @@ async def extract_intent_stub(state: GraphState, session: AsyncSession) -> Graph
         summary="Extracting intent from user prompt",
     )
 
-    # Create stub intent (aligned with SPEC §3.1)
-    state.intent = IntentV1(
-        city="Paris",
-        date_window=DateWindow(
-            start=date(2025, 6, 10),
-            end=date(2025, 6, 14),
-            tz="Europe/Paris",
-        ),
-        budget_usd_cents=250000,  # $2,500
-        airports=["CDG"],
-        prefs=Preferences(
-            kid_friendly=False,
-            themes=["art", "food"],
-            avoid_overnight=False,
-            locked_slots=[],
-        ),
-    )
+    # Only create stub intent if not already set (e.g., from what-if)
+    if state.intent is None:
+        state.intent = IntentV1(
+            city="Paris",
+            date_window=DateWindow(
+                start=date(2025, 6, 10),
+                end=date(2025, 6, 14),
+                tz="Europe/Paris",
+            ),
+            budget_usd_cents=250000,  # $2,500
+            airports=["CDG"],
+            prefs=Preferences(
+                kid_friendly=False,
+                themes=["art", "food"],
+                avoid_overnight=False,
+                locked_slots=[],
+            ),
+        )
 
     await append_run_event(
         session,

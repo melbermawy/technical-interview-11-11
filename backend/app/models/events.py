@@ -14,6 +14,7 @@ NodeName = Literal[
     "tool_exec",
     "verifier",
     "repair",
+    "docs",
     "synth",
     "responder",
 ]

@@ -6,6 +6,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from backend.app.models.answer import AnswerV1
+from backend.app.models.docs import DocChunk
 from backend.app.models.intent import IntentV1
 from backend.app.models.itinerary import Citation, Decision
 from backend.app.models.plan import Choice, PlanV1
@@ -44,6 +45,8 @@ class GraphState:
     # LLM synthesis output (PR-8A)
     answer: AnswerV1 | None = None
     citations: list[Citation] = field(default_factory=list)
+    # Document retrieval matches (PR-10B)
+    doc_matches: list[DocChunk] = field(default_factory=list)
 
     # Debug/tracking
     rng_seed: int = 42
