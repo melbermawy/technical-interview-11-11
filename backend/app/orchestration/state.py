@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from backend.app.models.intent import IntentV1
@@ -35,6 +35,8 @@ class GraphState:
     choices: list[Choice] | None = None
     violations: list[Violation] = field(default_factory=list)
     decisions: list[Decision] = field(default_factory=list)
+    # Selector decision logs with score breakdowns (PR-6B)
+    selector_logs: list[dict[str, Any]] = field(default_factory=list)
 
     # Debug/tracking
     rng_seed: int = 42
