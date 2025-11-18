@@ -277,3 +277,53 @@ async def test_docs_node_returns_top_5_chunks(test_engine: AsyncEngine) -> None:
 
     # Verify limited to 5 chunks
     assert len(result_state.doc_matches) <= 5
+
+
+@pytest.mark.asyncio
+async def test_docs_node_logs_tool_call(test_engine: AsyncEngine) -> None:
+    """Test that docs_node logs the docs.search tool call (PR-11A)."""
+    org_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    run_id = uuid.uuid4()
+
+    # Create org and user
+    async with AsyncSession(test_engine) as session:
+        org = Org(org_id=org_id, name="Test Org")
+        user = User(user_id=user_id, org_id=org_id, email="test@example.com")
+        session.add_all([org, user])
+        await session.commit()
+
+    # Create state with Paris intent
+    state = GraphState(
+        run_id=run_id,
+        org_id=org_id,
+        user_id=user_id,
+        intent=IntentV1(
+            city="Paris",
+            date_window=DateWindow(
+                start=date(2025, 6, 10),
+                end=date(2025, 6, 14),
+                tz="Europe/Paris",
+            ),
+            budget_usd_cents=100000,
+            airports=["CDG"],
+            prefs=Preferences(themes=["art"]),
+        ),
+    )
+
+    # Run docs_node
+    async with AsyncSession(test_engine) as session:
+        result_state = await docs_node(state, session)
+
+    # Verify tool call logged
+    assert len(result_state.tool_calls) == 1
+    log = result_state.tool_calls[0]
+
+    assert log.name == "docs.search"
+    assert log.success is True
+    assert log.error is None
+    assert log.duration_ms >= 0
+    assert "query" in log.input_summary
+    assert "limit" in log.input_summary
+    assert log.input_summary["limit"] == 5
+    assert "count" in log.output_summary

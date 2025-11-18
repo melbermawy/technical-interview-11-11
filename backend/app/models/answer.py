@@ -79,6 +79,52 @@ class AnswerV1(BaseModel):
     )
 
 
+def build_tools_used_from_state(state: "GraphState") -> list[ToolUsageSummary]:
+    """Build tools_used from GraphState.tool_calls (PR-11B).
+
+    This is a pure aggregation function with no side effects.
+    Groups tool calls by name and computes count and total_ms.
+
+    Args:
+        state: GraphState with tool_calls populated
+
+    Returns:
+        List of ToolUsageSummary, sorted by name (deterministic)
+    """
+    from backend.app.orchestration.state import GraphState
+
+    if not isinstance(state, GraphState):
+        raise TypeError(f"Expected GraphState, got {type(state)}")
+
+    # Handle empty or None tool_calls
+    if not state.tool_calls:
+        return []
+
+    # Group by tool name
+    tool_groups: dict[str, list[int]] = {}
+    for log in state.tool_calls:
+        if log.name not in tool_groups:
+            tool_groups[log.name] = []
+        # Append duration, treating None as 0
+        duration = log.duration_ms if log.duration_ms is not None else 0
+        tool_groups[log.name].append(duration)
+
+    # Build ToolUsageSummary list
+    tools_used = [
+        ToolUsageSummary(
+            name=name,
+            count=len(durations),
+            total_ms=sum(durations),
+        )
+        for name, durations in tool_groups.items()
+    ]
+
+    # Sort by name for determinism
+    tools_used.sort(key=lambda t: t.name)
+
+    return tools_used
+
+
 def build_qa_plan_response_from_state(state: "GraphState") -> QAPlanResponse:
     """Map GraphState to QAPlanResponse for /qa/plan endpoint.
 
@@ -144,18 +190,8 @@ def build_qa_plan_response_from_state(state: "GraphState") -> QAPlanResponse:
 
     itinerary = ItinerarySummary(days=days, total_cost_usd=total_cost_usd)
 
-    # 4. Build tools_used from provenance
-    # Group by provenance source and count
-    tool_counts: dict[str, int] = {}
-    for choice in choices:
-        source = choice.provenance.source
-        tool_counts[source] = tool_counts.get(source, 0) + 1
-
-    # Convert to ToolUsageSummary list, sorted by name for determinism
-    tools_used = [
-        ToolUsageSummary(name=name, count=count, total_ms=0)  # total_ms not tracked yet
-        for name, count in sorted(tool_counts.items())
-    ]
+    # 4. Build tools_used from GraphState.tool_calls (PR-11B)
+    tools_used = build_tools_used_from_state(state)
 
     return QAPlanResponse(
         answer_markdown=answer_markdown,

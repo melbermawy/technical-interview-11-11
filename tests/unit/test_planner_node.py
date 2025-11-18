@@ -348,3 +348,41 @@ async def test_plan_real_includes_multiple_kinds(
     # With fanout_cap=4, we should get at least flights and lodging
     # (exact mix depends on fixtures and cap, but verify we get variety)
     assert len(kinds) >= 1  # At least one kind of choice
+
+
+@pytest.mark.asyncio
+async def test_plan_real_logs_tool_calls(
+    paris_intent: IntentV1, mock_http_client: httpx.AsyncClient
+) -> None:
+    """Test that plan_real logs all adapter tool calls (PR-11A)."""
+    session = MockSession()
+    state = GraphState(run_id=uuid4(), org_id=uuid4(), user_id=uuid4(), intent=paris_intent)
+
+    result_state = await plan_real(state, session, http_client=mock_http_client)  # type: ignore
+
+    # Verify tool calls were logged
+    assert len(result_state.tool_calls) >= 6  # flights, lodging, attractions, fx, weather, transit
+
+    # Extract tool names
+    tool_names = {log.name for log in result_state.tool_calls}
+
+    # Verify all expected adapters are logged
+    expected_tools = {
+        "adapter.flights",
+        "adapter.lodging",
+        "adapter.attractions",
+        "adapter.fx",
+        "adapter.weather",
+        "adapter.transit",
+    }
+    assert expected_tools.issubset(tool_names)
+
+    # Verify all logs have required fields
+    for log in result_state.tool_calls:
+        assert log.name
+        assert log.started_at
+        assert log.finished_at
+        assert log.duration_ms >= 0
+        assert isinstance(log.success, bool)
+        assert isinstance(log.input_summary, dict)
+        assert isinstance(log.output_summary, dict)

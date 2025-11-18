@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.db.run_events import append_run_event
 from backend.app.docs.retriever import search_docs
 from backend.app.orchestration.state import GraphState
+from backend.app.orchestration.tools import run_tool
 
 
 async def docs_node(state: GraphState, session: AsyncSession) -> GraphState:
@@ -50,14 +51,21 @@ async def docs_node(state: GraphState, session: AsyncSession) -> GraphState:
         query_parts.extend(state.intent.prefs.themes)
 
     query = " ".join(query_parts)
+    limit = 5
 
-    # Search docs
-    matches = await search_docs(
-        org_id=state.org_id,
-        user_id=state.user_id,
-        query=query,
-        limit=5,  # Top 5 chunks
-        session=session,
+    # Search docs with logging
+    matches = await run_tool(
+        name="docs.search",
+        state=state,
+        input_summary={"query": query, "limit": limit},
+        output_counter=lambda result: {"count": len(result)},
+        call=lambda: search_docs(
+            org_id=state.org_id,
+            user_id=state.user_id,
+            query=query,
+            limit=limit,
+            session=session,
+        ),
     )
 
     # Extract just the chunks (drop scores for now)
