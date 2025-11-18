@@ -12,9 +12,11 @@ from backend.app.models.common import ChoiceKind, Provenance
 from backend.app.models.intent import DateWindow, IntentV1, Preferences
 from backend.app.models.itinerary import Decision
 from backend.app.models.plan import Assumptions, Choice, ChoiceFeatures, DayPlan, PlanV1, Slot
+from backend.app.models.violations import ViolationSeverity
 from backend.app.orchestration.planner import plan_real
 from backend.app.orchestration.selector import select_best_choices
 from backend.app.orchestration.state import GraphState
+from backend.app.verification.verifiers import run_verifiers
 
 
 async def run_graph_stub(state: GraphState, session: AsyncSession) -> GraphState:
@@ -288,7 +290,7 @@ async def tool_exec_stub(state: GraphState, session: AsyncSession) -> GraphState
 
 
 async def verify_stub(state: GraphState, session: AsyncSession) -> GraphState:
-    """Stub verifier - finds no violations."""
+    """Real verifier - checks budget, preferences, feasibility, and weather (PR-7B)."""
     await append_run_event(
         session,
         run_id=state.run_id,
@@ -296,12 +298,39 @@ async def verify_stub(state: GraphState, session: AsyncSession) -> GraphState:
         sequence=state.next_sequence(),
         node="verifier",
         phase="started",
-        summary="Running 5 verifiers (budget, timing, venue, weather, prefs)",
+        summary="Running verifiers (budget, preferences, feasibility, weather)",
     )
 
-    # Stub: no violations
-    state.violations = []
+    # Handle missing intent or choices
+    if not state.intent or not state.choices:
+        state.violations = []
+        state.has_blocking_violations = False
+        await append_run_event(
+            session,
+            run_id=state.run_id,
+            org_id=state.org_id,
+            sequence=state.next_sequence(),
+            node="verifier",
+            phase="completed",
+            summary="Verification skipped: missing intent or choices",
+        )
+        return state
 
+    # Run verifiers (pass weather if available)
+    violations = await run_verifiers(
+        intent=state.intent,
+        choices=state.choices,
+        weather=state.weather if state.weather else None,
+    )
+
+    # Update state
+    state.violations = violations
+    state.has_blocking_violations = any(
+        v.severity == ViolationSeverity.BLOCKING for v in violations
+    )
+
+    num_violations = len(violations)
+    num_blocking = sum(1 for v in violations if v.severity == ViolationSeverity.BLOCKING)
     await append_run_event(
         session,
         run_id=state.run_id,
@@ -309,7 +338,7 @@ async def verify_stub(state: GraphState, session: AsyncSession) -> GraphState:
         sequence=state.next_sequence(),
         node="verifier",
         phase="completed",
-        summary="Verification passed: 0 violations found",
+        summary=f"Verification complete: {num_violations} violations ({num_blocking} blocking)",
     )
 
     return state
