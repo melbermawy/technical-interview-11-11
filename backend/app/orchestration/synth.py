@@ -71,12 +71,13 @@ async def synth_node(state: GraphState, session: AsyncSession) -> GraphState:
         )
         return state
 
-    # Call LLM client to generate answer
+    # Call LLM client to generate answer (with doc_matches from PR-10B)
     answer = await synthesize_answer_with_openai(
         intent=state.intent,
         choices=state.choices,
         violations=state.violations,
         selector_logs=state.selector_logs,
+        doc_matches=state.doc_matches if state.doc_matches else None,
     )
 
     # Extract citations from choice provenance

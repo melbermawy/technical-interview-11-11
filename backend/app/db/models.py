@@ -312,3 +312,53 @@ class RunEvent(Base):
     phase: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class Doc(Base):
+    """User document table - stores document metadata (PR-10A)."""
+
+    __tablename__ = "doc"
+    __table_args__ = (Index("idx_doc_org_user", "org_id", "user_id", "created_at"),)
+
+    doc_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("org.org_id"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user.user_id"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False, default="other")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    org: Mapped["Org"] = relationship("Org")
+    user: Mapped["User"] = relationship("User")
+    chunks: Mapped[list["DocChunk"]] = relationship("DocChunk", back_populates="doc")
+
+
+class DocChunk(Base):
+    """Document chunk table - stores chunked text for retrieval (PR-10A)."""
+
+    __tablename__ = "doc_chunk"
+    __table_args__ = (
+        Index("idx_chunk_doc_order", "doc_id", "order"),
+        Index("idx_chunk_doc", "doc_id"),
+    )
+
+    chunk_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    doc_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("doc.doc_id"), nullable=False
+    )
+    order: Mapped[int] = mapped_column(nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    section_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationship
+    doc: Mapped["Doc"] = relationship("Doc", back_populates="chunks")
