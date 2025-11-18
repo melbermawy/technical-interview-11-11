@@ -8,11 +8,12 @@ from datetime import date, datetime, time
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.run_events import append_run_event
-from backend.app.features.mapping import build_choice_features_for_itinerary
 from backend.app.models.common import ChoiceKind, Provenance
 from backend.app.models.intent import DateWindow, IntentV1, Preferences
 from backend.app.models.itinerary import Decision
 from backend.app.models.plan import Assumptions, Choice, ChoiceFeatures, DayPlan, PlanV1, Slot
+from backend.app.orchestration.planner import plan_real
+from backend.app.orchestration.selector import select_best_choices
 from backend.app.orchestration.state import GraphState
 
 
@@ -31,8 +32,8 @@ async def run_graph_stub(state: GraphState, session: AsyncSession) -> GraphState
     # Node 1: Extract intent
     state = await extract_intent_stub(state, session)
 
-    # Node 2: Planner
-    state = await plan_stub(state, session)
+    # Node 2: Planner (real implementation from PR-6A)
+    state = await plan_real(state, session)
 
     # Node 3: Selector
     state = await selector_stub(state, session)
@@ -197,7 +198,7 @@ async def plan_stub(state: GraphState, session: AsyncSession) -> GraphState:
 
 
 async def selector_stub(state: GraphState, session: AsyncSession) -> GraphState:
-    """Stub selector - no-op since we have no branches in stub."""
+    """Real selector - scores choices and selects top-k (PR-6B)."""
     await append_run_event(
         session,
         run_id=state.run_id,
@@ -205,22 +206,47 @@ async def selector_stub(state: GraphState, session: AsyncSession) -> GraphState:
         sequence=state.next_sequence(),
         node="selector",
         phase="started",
-        summary="Selecting best options from branches",
+        summary="Scoring and selecting best choices",
     )
+
+    # Handle empty/missing choices
+    if not state.choices or not state.intent:
+        num_choices = len(state.choices) if state.choices else 0
+        has_intent = state.intent is not None
+        await append_run_event(
+            session,
+            run_id=state.run_id,
+            org_id=state.org_id,
+            sequence=state.next_sequence(),
+            node="selector",
+            phase="completed",
+            summary=f"No choices to select from ({num_choices} available, intent={has_intent})",
+        )
+        return state
+
+    # Score and select best choices
+    selected_choices, selector_logs = select_best_choices(
+        choices=state.choices,
+        intent=state.intent,
+        max_selected=10,
+    )
+
+    # Update state
+    state.choices = selected_choices
+    state.selector_logs = selector_logs
 
     # Record decision
     state.decisions.append(
         Decision(
             node="selector",
-            rationale="Single branch selected (stub implementation)",
-            alternatives_considered=1,
-            selected="branch_0",
+            rationale=f"Selected {len(selected_choices)} choices using feature-based scoring",
+            alternatives_considered=len(state.choices) if state.choices else 0,
+            selected=f"top_{len(selected_choices)}",
         )
     )
 
-    # PR-5B: Minimal feature mapper wiring (stub call to prove it's callable)
-    state.choices = await build_choice_features_for_itinerary()
-
+    num_selected = len(selected_choices)
+    num_logs = len(selector_logs)
     await append_run_event(
         session,
         run_id=state.run_id,
@@ -228,7 +254,7 @@ async def selector_stub(state: GraphState, session: AsyncSession) -> GraphState:
         sequence=state.next_sequence(),
         node="selector",
         phase="completed",
-        summary="Selected 1 branch with top-ranked choices",
+        summary=f"Selected {num_selected} choices with scores; {num_logs} decision logs",
     )
 
     return state
