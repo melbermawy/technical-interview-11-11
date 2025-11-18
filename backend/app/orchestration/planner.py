@@ -199,6 +199,7 @@ async def plan_real(
 
     # Store in state
     state.choices = capped_choices
+    state.weather = weather.value if weather and weather.value else []
 
     await append_run_event(
         session,

@@ -8,6 +8,7 @@ from uuid import UUID
 from backend.app.models.intent import IntentV1
 from backend.app.models.itinerary import Decision
 from backend.app.models.plan import Choice, PlanV1
+from backend.app.models.tool_results import WeatherDay
 from backend.app.models.violations import Violation
 
 RunStatus = Literal["pending", "running", "succeeded", "failed", "cancelled"]
@@ -33,7 +34,9 @@ class GraphState:
     # Normalized candidate options (flight, lodging, attraction, transit, etc),
     # each with ChoiceFeatures and Provenance attached
     choices: list[Choice] | None = None
+    weather: list[WeatherDay] = field(default_factory=list)
     violations: list[Violation] = field(default_factory=list)
+    has_blocking_violations: bool = False
     decisions: list[Decision] = field(default_factory=list)
     # Selector decision logs with score breakdowns (PR-6B)
     selector_logs: list[dict[str, Any]] = field(default_factory=list)
