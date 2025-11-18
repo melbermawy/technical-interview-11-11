@@ -17,6 +17,12 @@ from backend.app.features.mapping import build_choice_features_for_itinerary
 from backend.app.models.common import ChoiceKind, Geo, TransitMode
 from backend.app.models.plan import Choice
 from backend.app.orchestration.state import GraphState
+from backend.app.orchestration.tools import run_tool
+
+
+async def _async_wrap(value):
+    """Wrap a sync value in an async callable for run_tool."""
+    return value
 
 
 def apply_fanout_cap(choices: list[Choice], cap: int) -> list[Choice]:
@@ -134,12 +140,42 @@ async def plan_real(
     }
     dest = city_to_airport.get(intent.city.lower(), "CDG")
 
-    # Fetch all tool results
-    flights = fetch_flights(origin=origin, dest=dest)
-    lodging = fetch_lodging(city=intent.city.lower(), tier_prefs=None)
+    # Fetch all tool results with logging
+    flights = await run_tool(
+        name="adapter.flights",
+        state=state,
+        input_summary={"origin": origin, "destination": dest},
+        output_counter=lambda r: {"count": len(r.value) if r.value else 0},
+        call=lambda: _async_wrap(fetch_flights(origin=origin, dest=dest)),
+    )
+
+    lodging = await run_tool(
+        name="adapter.lodging",
+        state=state,
+        input_summary={"city": intent.city.lower(), "num_nights": num_nights},
+        output_counter=lambda r: {"count": len(r.value) if r.value else 0},
+        call=lambda: _async_wrap(fetch_lodging(city=intent.city.lower(), tier_prefs=None)),
+    )
+
     kid_friendly_filter = intent.prefs.kid_friendly if intent.prefs.kid_friendly else None
-    attractions = fetch_attractions(city=intent.city.lower(), kid_friendly=kid_friendly_filter)
-    fx_rates = fetch_fx_rate(from_currency="EUR", to_currency="USD")
+    city_lower = intent.city.lower()
+    attractions = await run_tool(
+        name="adapter.attractions",
+        state=state,
+        input_summary={"city": city_lower, "kid_friendly": kid_friendly_filter},
+        output_counter=lambda r: {"count": len(r.value) if r.value else 0},
+        call=lambda: _async_wrap(
+            fetch_attractions(city=city_lower, kid_friendly=kid_friendly_filter)
+        ),
+    )
+
+    fx_rates = await run_tool(
+        name="adapter.fx",
+        state=state,
+        input_summary={"from": "EUR", "to": "USD"},
+        output_counter=lambda r: {"count": 1 if r.value else 0},
+        call=lambda: _async_wrap(fetch_fx_rate(from_currency="EUR", to_currency="USD")),
+    )
 
     # Fetch weather (async)
     # Use a simple location for the city (Paris coords as example)
@@ -157,11 +193,22 @@ async def plan_real(
         close_client = True
 
     try:
-        weather = await fetch_weather(
-            location=location,
-            start_date=intent.date_window.start,
-            end_date=intent.date_window.end,
-            client=http_client,
+        weather = await run_tool(
+            name="adapter.weather",
+            state=state,
+            input_summary={
+                "lat": location.lat,
+                "lon": location.lon,
+                "start": str(intent.date_window.start),
+                "end": str(intent.date_window.end),
+            },
+            output_counter=lambda r: {"count": len(r.value) if r.value else 0},
+            call=lambda: fetch_weather(
+                location=location,
+                start_date=intent.date_window.start,
+                end_date=intent.date_window.end,
+                client=http_client,
+            ),
         )
     finally:
         if close_client:
@@ -169,14 +216,31 @@ async def plan_real(
 
     # Optional: fetch transit (for now, just create one sample transit leg)
     # This is a placeholder - real implementation would generate based on attractions
-    transit_leg = calculate_transit(
-        from_geo=location,
-        to_geo=Geo(lat=location.lat + 0.01, lon=location.lon + 0.01),
-        mode=TransitMode.metro,
-    )
-    # Wrap single transit leg in a list-based ToolResult
     from backend.app.tools.executor import ToolResult
 
+    transit_leg = await run_tool(
+        name="adapter.transit",
+        state=state,
+        input_summary={
+            "from_lat": location.lat,
+            "from_lon": location.lon,
+            "to_lat": location.lat + 0.01,
+            "to_lon": location.lon + 0.01,
+            "mode": "metro",
+        },
+        output_counter=lambda r: {
+            "duration_seconds": r.value.duration_seconds if r.value else None
+        },
+        call=lambda: _async_wrap(
+            calculate_transit(
+                from_geo=location,
+                to_geo=Geo(lat=location.lat + 0.01, lon=location.lon + 0.01),
+                mode=TransitMode.metro,
+            )
+        ),
+    )
+
+    # Wrap single transit leg in a list-based ToolResult
     transit = ToolResult(
         value=[transit_leg.value],
         provenance=transit_leg.provenance,

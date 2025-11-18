@@ -11,6 +11,7 @@ from backend.app.models.intent import IntentV1
 from backend.app.models.itinerary import Citation, Decision
 from backend.app.models.plan import Choice, PlanV1
 from backend.app.models.tool_results import WeatherDay
+from backend.app.models.tools import ToolCallLog
 from backend.app.models.violations import Violation
 
 RunStatus = Literal["pending", "running", "succeeded", "failed", "cancelled"]
@@ -47,6 +48,8 @@ class GraphState:
     citations: list[Citation] = field(default_factory=list)
     # Document retrieval matches (PR-10B)
     doc_matches: list[DocChunk] = field(default_factory=list)
+    # Tool call logs (PR-11A)
+    tool_calls: list[ToolCallLog] = field(default_factory=list)
 
     # Debug/tracking
     rng_seed: int = 42
