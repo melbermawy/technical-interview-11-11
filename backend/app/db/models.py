@@ -40,9 +40,7 @@ class Org(Base):
 
     # Relationships
     users: Mapped[list["User"]] = relationship("User", back_populates="org")
-    destinations: Mapped[list["Destination"]] = relationship(
-        "Destination", back_populates="org"
-    )
+    destinations: Mapped[list["Destination"]] = relationship("Destination", back_populates="org")
     knowledge_items: Mapped[list["KnowledgeItem"]] = relationship(
         "KnowledgeItem", back_populates="org"
     )
@@ -186,10 +184,18 @@ class Embedding(Base):
 
 
 class AgentRun(Base):
-    """Agent run table - LangGraph execution state."""
+    """Agent run table - LangGraph execution state.
+
+    Supports run threading for what-if scenarios (PR-9A):
+    - parent_run_id: Links child runs to their parent
+    - scenario_label: Optional short description of the what-if scenario
+    """
 
     __tablename__ = "agent_run"
-    __table_args__ = (Index("idx_run_org_user", "org_id", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("idx_run_org_user", "org_id", "user_id", "created_at"),
+        Index("idx_run_parent", "parent_run_id"),
+    )
 
     run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -200,10 +206,14 @@ class AgentRun(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("user.user_id"), nullable=False
     )
-    intent: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    plan_snapshot: Mapped[list[dict[str, Any]] | None] = mapped_column(
-        ARRAY(JSONB), nullable=True
+    # PR-9A: What-if run threading
+    parent_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agent_run.run_id"), nullable=True
     )
+    scenario_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    intent: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    plan_snapshot: Mapped[list[dict[str, Any]] | None] = mapped_column(ARRAY(JSONB), nullable=True)
     tool_log: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     trace_id: Mapped[str] = mapped_column(Text, nullable=False)
@@ -217,6 +227,10 @@ class AgentRun(Base):
     org: Mapped["Org"] = relationship("Org", back_populates="agent_runs")
     user: Mapped["User"] = relationship("User", back_populates="agent_runs")
     itineraries: Mapped[list["Itinerary"]] = relationship("Itinerary", back_populates="agent_run")
+    # Self-referential relationship for run threading
+    parent: Mapped["AgentRun | None"] = relationship(
+        "AgentRun", remote_side=[run_id], backref="children"
+    )
 
 
 class Itinerary(Base):
@@ -283,9 +297,7 @@ class RunEvent(Base):
         Index("idx_run_event_run_seq", "run_id", "sequence"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("agent_run.run_id"), nullable=False
     )
