@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +29,10 @@ class Settings(BaseSettings):
     weather_api_key: str = ""
     weather_base_url: str = "https://api.open-meteo.com/v1/forecast"
     weather_cache_ttl_seconds: int = 86400  # 24 hours
+
+    # LLM / OpenAI (PR-8A)
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-4o-mini"
 
     # Graph orchestration
     fanout_cap: int = 4
@@ -86,3 +91,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
+
+
+# Global settings instance
+settings = get_settings()

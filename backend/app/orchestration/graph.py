@@ -16,6 +16,7 @@ from backend.app.models.violations import ViolationSeverity
 from backend.app.orchestration.planner import plan_real
 from backend.app.orchestration.selector import select_best_choices
 from backend.app.orchestration.state import GraphState
+from backend.app.orchestration.synth import synth_node
 from backend.app.verification.verifiers import run_verifiers
 
 
@@ -50,8 +51,8 @@ async def run_graph_stub(state: GraphState, session: AsyncSession) -> GraphState
     if state.violations:
         state = await repair_stub(state, session)
 
-    # Node 7: Synthesizer
-    state = await synth_stub(state, session)
+    # Node 7: Synthesizer (real LLM synthesis from PR-8A)
+    state = await synth_node(state, session)
 
     # Node 8: Responder
     state = await responder_stub(state, session)

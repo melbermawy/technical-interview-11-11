@@ -5,8 +5,9 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
+from backend.app.models.answer import AnswerV1
 from backend.app.models.intent import IntentV1
-from backend.app.models.itinerary import Decision
+from backend.app.models.itinerary import Citation, Decision
 from backend.app.models.plan import Choice, PlanV1
 from backend.app.models.tool_results import WeatherDay
 from backend.app.models.violations import Violation
@@ -40,6 +41,9 @@ class GraphState:
     decisions: list[Decision] = field(default_factory=list)
     # Selector decision logs with score breakdowns (PR-6B)
     selector_logs: list[dict[str, Any]] = field(default_factory=list)
+    # LLM synthesis output (PR-8A)
+    answer: AnswerV1 | None = None
+    citations: list[Citation] = field(default_factory=list)
 
     # Debug/tracking
     rng_seed: int = 42
