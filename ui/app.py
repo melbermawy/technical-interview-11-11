@@ -1,206 +1,295 @@
-"""Streamlit UI for travel planner - PR-4B.
+"""Streamlit UI for travel planner - PR-12 hero /qa/plan UI.
 
 Run with: streamlit run ui/app.py
 """
 
 # Add project root to sys.path for imports to work when run via streamlit
-# Streamlit executes this file as __main__, so ui package isn't automatically available
 import sys
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[1]  # Project root
+_ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-import time  # noqa: E402
+from datetime import date, datetime  # noqa: E402
 
 import streamlit as st  # noqa: E402
 
-from ui.helpers import (  # noqa: E402
-    build_activity_feed,
-    build_itinerary_view,
-    build_telemetry_view,
-    create_run,
-    stream_run_events,
-)
+from ui.helpers import call_qa_plan  # noqa: E402
 
 # Configuration
 BACKEND_URL = "http://localhost:8000"
 
 # Page config
 st.set_page_config(
-    page_title="Travel Planner",
+    page_title="AI Travel Planner",
     page_icon="✈️",
     layout="wide",
 )
 
 # Initialize session state
-if "run_id" not in st.session_state:
-    st.session_state.run_id = None
-if "events" not in st.session_state:
-    st.session_state.events = []
-if "run_status" not in st.session_state:
-    st.session_state.run_status = None
-if "last_heartbeat" not in st.session_state:
-    st.session_state.last_heartbeat = None
-
+if "response" not in st.session_state:
+    st.session_state.response = None
+if "error" not in st.session_state:
+    st.session_state.error = None
+if "loading" not in st.session_state:
+    st.session_state.loading = False
 
 # Title
 st.title("✈️ AI Travel Planner")
-st.markdown("*PR-4B: Stub orchestrator with live SSE streaming*")
-
-# Sidebar controls
-with st.sidebar:
-    st.header("Trip Details")
-
-    prompt = st.text_area(
-        "Trip Brief",
-        value="Plan a 3-day trip to Paris",
-        height=100,
-        help="Describe your trip requirements",
-    )
-
-    max_days = st.slider("Max Days", min_value=3, max_value=7, value=5)
-
-    budget_usd = st.number_input(
-        "Budget (USD)",
-        min_value=100,
-        max_value=10000,
-        value=2500,
-        step=100,
-    )
-
-    if st.button("🚀 Start Planning", type="primary", use_container_width=True):
-        try:
-            with st.spinner("Creating run..."):
-                result = create_run(
-                    BACKEND_URL,
-                    prompt=prompt,
-                    max_days=max_days,
-                    budget_usd_cents=budget_usd * 100,
-                )
-                st.session_state.run_id = result["run_id"]
-                st.session_state.events = []
-                st.session_state.run_status = "running"
-                st.session_state.last_heartbeat = None
-                st.success(f"Run started: {result['run_id'][:8]}...")
-                st.rerun()
-        except Exception as e:
-            st.error(f"Failed to start run: {e}")
-
-    # Display current run
-    if st.session_state.run_id:
-        st.divider()
-        st.caption(f"**Run ID:** `{st.session_state.run_id[:8]}...`")
-        if st.session_state.run_status:
-            status_color = {
-                "running": "🔵",
-                "succeeded": "✅",
-                "failed": "❌",
-                "cancelled": "⚠️",
-            }.get(st.session_state.run_status, "⚪")
-            st.caption(f"**Status:** {status_color} {st.session_state.run_status}")
-
-        if st.session_state.last_heartbeat:
-            st.caption(f"**Last heartbeat:** {st.session_state.last_heartbeat}")
+st.markdown("*Single-shot planning powered by /qa/plan endpoint*")
+st.divider()
 
 # Main layout - 3 columns
-col_left, col_center, col_right = st.columns([2, 3, 2])
+col_left, col_center, col_right = st.columns([1, 2, 1.5])
 
+# =============================================================================
+# LEFT COLUMN - TRIP SETUP FORM
+# =============================================================================
 with col_left:
-    st.subheader("📋 Activity Feed")
-    activity_container = st.container(height=600)
+    st.subheader("📋 Trip Setup")
 
-    if st.session_state.events:
-        feed_items = build_activity_feed(st.session_state.events)
-        with activity_container:
-            for item in feed_items:
-                st.markdown(item)
-    else:
-        with activity_container:
-            st.info("No activity yet. Start a run to see progress.")
+    with st.form("trip_form"):
+        city = st.text_input("Destination City *", value="Paris", help="Required")
 
-with col_center:
-    st.subheader("🗺️ Itinerary")
-    itinerary_container = st.container(height=600)
+        col_date1, col_date2 = st.columns(2)
+        with col_date1:
+            start_date = st.date_input(
+                "Start Date *", value=date(2025, 6, 10), help="Required"
+            )
+        with col_date2:
+            end_date = st.date_input("End Date *", value=date(2025, 6, 14), help="Required")
 
-    if st.session_state.events:
-        itinerary = build_itinerary_view(st.session_state.events)
+        budget = st.number_input(
+            "Budget (USD) *",
+            min_value=100,
+            max_value=50000,
+            value=2000,
+            step=100,
+            help="Required",
+        )
 
-        with itinerary_container:
-            if itinerary["days"]:
-                st.markdown(f"**Status:** {itinerary['status']}")
-                st.divider()
+        airports_raw = st.text_input(
+            "Airports",
+            value="JFK",
+            help="Comma-separated airport codes (e.g., JFK, LGA, EWR)",
+        )
 
-                for day_info in itinerary["days"]:
-                    st.markdown(f"### Day {day_info['day']}")
-                    for slot in day_info["slots"]:
-                        st.markdown(f"- **{slot['time']}**: {slot['activity']}")
+        themes_raw = st.text_input(
+            "Themes",
+            value="art, food",
+            help="Comma-separated themes (e.g., art, food, culture)",
+        )
+
+        # Timezone selection
+        timezone = st.selectbox(
+            "Timezone",
+            options=["UTC", "America/New_York", "Europe/Paris", "Asia/Tokyo"],
+            index=2,
+        )
+
+        submitted = st.form_submit_button("🚀 Plan Trip", type="primary", use_container_width=True)
+
+        # Validation and submission
+        if submitted:
+            # Basic validation
+            errors = []
+            if not city.strip():
+                errors.append("City is required")
+            if not start_date:
+                errors.append("Start date is required")
+            if not end_date:
+                errors.append("End date is required")
+            if end_date < start_date:
+                errors.append("End date must be after start date")
+            if budget < 100:
+                errors.append("Budget must be at least $100")
+
+            if errors:
+                st.session_state.error = " | ".join(errors)
+                st.session_state.response = None
             else:
-                st.info("Itinerary will appear here once planning is complete.")
-    else:
-        with itinerary_container:
-            st.info("Itinerary will appear here once planning is complete.")
+                # Parse airports and themes
+                airports = [a.strip() for a in airports_raw.split(",") if a.strip()]
+                themes = [t.strip() for t in themes_raw.split(",") if t.strip()]
 
+                # Call /qa/plan
+                st.session_state.loading = True
+                st.session_state.error = None
+                st.session_state.response = None
+
+                try:
+                    response = call_qa_plan(
+                        backend_url=BACKEND_URL,
+                        city=city.strip(),
+                        start_date=start_date.isoformat(),
+                        end_date=end_date.isoformat(),
+                        budget_usd_cents=int(budget * 100),
+                        airports=airports,
+                        themes=themes,
+                        timezone=timezone,
+                    )
+                    st.session_state.response = response
+                    st.session_state.error = None
+                except Exception as e:
+                    st.session_state.error = str(e)
+                    st.session_state.response = None
+                finally:
+                    st.session_state.loading = False
+                    st.rerun()
+
+    # Show validation errors
+    if st.session_state.error and not st.session_state.loading:
+        st.error(f"❌ {st.session_state.error}")
+
+    # Show loading state
+    if st.session_state.loading:
+        st.info("⏳ Planning your trip...")
+
+# =============================================================================
+# CENTER COLUMN - ANSWER + ITINERARY
+# =============================================================================
+with col_center:
+    st.subheader("🗺️ Your Itinerary")
+
+    if st.session_state.response:
+        response = st.session_state.response
+
+        # Render answer markdown
+        st.markdown("### Summary")
+        st.markdown(response.get("answer_markdown", "_No answer available_"))
+
+        st.divider()
+
+        # Render itinerary
+        itinerary = response.get("itinerary", {})
+        days = itinerary.get("days", [])
+        total_cost = itinerary.get("total_cost_usd", 0)
+
+        if days:
+            st.markdown(f"### Days ({len(days)} day{'s' if len(days) != 1 else ''})")
+            st.caption(f"**Total Cost:** ${total_cost}")
+
+            for day_info in days:
+                day_date = day_info.get("date", "Unknown")
+                items = day_info.get("items", [])
+
+                # Parse date for prettier display
+                try:
+                    parsed_date = datetime.fromisoformat(day_date)
+                    display_date = parsed_date.strftime("%A, %B %d, %Y")
+                except (ValueError, TypeError):
+                    display_date = day_date
+
+                st.markdown(f"#### {display_date}")
+
+                for item in items:
+                    start_time = item.get("start", "")
+                    end_time = item.get("end", "")
+                    title = item.get("title", "Activity")
+                    location = item.get("location")
+                    notes = item.get("notes", "")
+
+                    time_range = f"{start_time}–{end_time}" if start_time and end_time else ""
+
+                    item_text = f"**{time_range}** {title}"
+                    if location:
+                        item_text += f" @ _{location}_"
+                    if notes:
+                        item_text += f"\n  - {notes}"
+
+                    st.markdown(f"- {item_text}")
+        else:
+            st.info("No itinerary days found.")
+    else:
+        st.info("👈 Fill out the trip form and hit **Plan Trip** to see your itinerary here.")
+
+# =============================================================================
+# RIGHT COLUMN - CHECKS & TELEMETRY
+# =============================================================================
 with col_right:
-    st.subheader("🔍 Checks & Tools")
-    telemetry_container = st.container(height=600)
+    st.subheader("🔍 Checks & Telemetry")
 
-    if st.session_state.events:
-        telemetry = build_telemetry_view(st.session_state.events)
+    if st.session_state.response:
+        response = st.session_state.response
 
-        with telemetry_container:
-            st.markdown(f"**Progress:** {telemetry['checks']}")
-            st.divider()
+        # --- VIOLATIONS ---
+        violations = response.get("violations", [])
+        has_blocking = response.get("has_blocking_violations", False)
 
-            st.markdown("**Completed:**")
-            for node in telemetry["nodes_completed"]:
-                st.markdown(f"- ✓ {node}")
+        st.markdown("#### Violations")
+        if not violations:
+            st.success("✅ No issues detected")
+        else:
+            if has_blocking:
+                st.error("🚨 **BLOCKING ISSUES DETECTED**")
 
-            if telemetry["nodes_pending"]:
-                st.markdown("**Pending:**")
-                for node in telemetry["nodes_pending"]:
-                    st.markdown(f"- ⋯ {node}")
+            for v in violations:
+                severity = v.get("severity", "unknown").upper()
+                code = v.get("code", "UNKNOWN")
+                message = v.get("message", "")
+                kind = v.get("kind", "").upper()
+                details = v.get("details", {})
 
-            if telemetry["violations"]:
-                st.divider()
-                st.markdown("**Violations:**")
-                for v in telemetry["violations"]:
-                    st.markdown(f"- {v}")
+                # Color code severity
+                if severity == "BLOCKING":
+                    badge = "🔴 BLOCKING"
+                elif severity == "ADVISORY":
+                    badge = "🟡 ADVISORY"
+                else:
+                    badge = f"⚪ {severity}"
+
+                st.markdown(f"**{badge}** `{code}` ({kind})")
+                st.caption(message)
+
+                # Show key details if present
+                if "budget_usd_cents" in details and "total_usd_cents" in details:
+                    budget = details["budget_usd_cents"] / 100
+                    total = details["total_usd_cents"] / 100
+                    ratio = details.get("ratio", total / budget if budget > 0 else 0)
+                    st.caption(f"💰 Spent {ratio:.2f}× budget (${total:.2f} vs ${budget:.2f})")
+
+        st.divider()
+
+        # --- TOOLS USED ---
+        tools_used = response.get("tools_used", [])
+
+        st.markdown("#### Tools Used")
+        if tools_used:
+            for tool in tools_used:
+                tool_name = tool.get("name", "unknown")
+                count = tool.get("count", 0)
+                total_ms = tool.get("total_ms", 0)
+
+                st.markdown(f"- **{tool_name}**: {count} call{'s' if count != 1 else ''} ({total_ms}ms)")
+        else:
+            st.caption("_No tool usage data_")
+
+        st.divider()
+
+        # --- CITATIONS ---
+        citations = response.get("citations", [])
+
+        st.markdown("#### Citations")
+        if citations:
+            for citation in citations:
+                claim = citation.get("claim", "")
+                prov = citation.get("provenance", {})
+                source = prov.get("source", "unknown")
+                ref_id = prov.get("ref_id", "")
+
+                badge_text = f"`{source}`"
+                if ref_id:
+                    badge_text += f" #{ref_id}"
+
+                st.markdown(f"- {claim}")
+                st.caption(f"  {badge_text}")
+        else:
+            st.caption("_No citations_")
+
+        # --- RAW JSON (dev toggle) ---
+        with st.expander("🔧 Raw JSON Response (dev)"):
+            st.json(response)
+
     else:
-        with telemetry_container:
-            st.info("Telemetry will appear here during execution.")
-
-# SSE streaming logic (runs in background)
-if st.session_state.run_id and st.session_state.run_status == "running":
-    try:
-        # Stream events
-        for event in stream_run_events(BACKEND_URL, st.session_state.run_id):
-            event_type = event["type"]
-            event_data = event["data"]
-
-            if event_type == "run_event":
-                # Add to events list
-                st.session_state.events.append(event_data)
-
-            elif event_type == "heartbeat":
-                # Update heartbeat timestamp
-                st.session_state.last_heartbeat = event_data.get("ts", "")
-
-            elif event_type == "done":
-                # Run completed
-                st.session_state.run_status = event_data.get("status", "unknown")
-                st.rerun()
-                break  # type: ignore[unreachable]
-
-            # Rerun to update UI every 5 events
-            if len(st.session_state.events) % 5 == 0:
-                time.sleep(0.1)  # Small delay to avoid too many reruns
-                st.rerun()
-
-        # Final rerun when stream ends
-        st.rerun()
-
-    except Exception as e:
-        st.error(f"Stream error: {e}")
-        st.session_state.run_status = "failed"
+        st.info("Telemetry will appear here after planning.")

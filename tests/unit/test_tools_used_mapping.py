@@ -286,3 +286,103 @@ def test_build_tools_used_with_failed_calls() -> None:
     assert tools_used[0].name == "adapter.flights"
     assert tools_used[0].count == 2
     assert tools_used[0].total_ms == 150
+
+
+def test_build_qa_plan_response_with_violations() -> None:
+    """Test that QAPlanResponse includes violations from GraphState (PR-12)."""
+    from backend.app.models.intent import DateWindow, IntentV1, Preferences
+    from backend.app.models.violations import Violation, ViolationKind, ViolationSeverity
+
+    # Create violations
+    violation1 = Violation(
+        kind=ViolationKind.BUDGET,
+        code="OVER_BUDGET",
+        message="Total cost exceeds budget by 45%",
+        severity=ViolationSeverity.BLOCKING,
+        affected_choice_ids=["flight_1", "hotel_2"],
+        details={"budget_usd_cents": 100000, "total_usd_cents": 145000, "ratio": 1.45},
+    )
+
+    violation2 = Violation(
+        kind=ViolationKind.WEATHER,
+        code="RAIN_WARNING",
+        message="High chance of rain on day 2",
+        severity=ViolationSeverity.ADVISORY,
+        affected_choice_ids=["day_2"],
+        details={"precip_prob": 0.85},
+    )
+
+    state = GraphState(
+        run_id=uuid.uuid4(),
+        org_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        intent=IntentV1(
+            city="Paris",
+            date_window=DateWindow(
+                start=date(2025, 6, 10), end=date(2025, 6, 14), tz="Europe/Paris"
+            ),
+            budget_usd_cents=100000,
+            airports=["JFK"],
+            prefs=Preferences(themes=["art"]),
+        ),
+        answer=AnswerV1(
+            answer_markdown="Test itinerary",
+            decisions=["Selected budget flights"],
+            synthesis_source="stub",
+        ),
+        violations=[violation1, violation2],
+        has_blocking_violations=True,
+        choices=[],
+        citations=[],
+        tool_calls=[],
+    )
+
+    response = build_qa_plan_response_from_state(state)
+
+    # Verify violations are populated
+    assert len(response.violations) == 2
+    assert response.has_blocking_violations is True
+
+    # Check first violation
+    assert response.violations[0].kind == ViolationKind.BUDGET
+    assert response.violations[0].code == "OVER_BUDGET"
+    assert response.violations[0].severity == ViolationSeverity.BLOCKING
+    assert response.violations[0].details["ratio"] == 1.45
+
+    # Check second violation
+    assert response.violations[1].kind == ViolationKind.WEATHER
+    assert response.violations[1].severity == ViolationSeverity.ADVISORY
+
+
+def test_build_qa_plan_response_empty_violations() -> None:
+    """Test that QAPlanResponse handles empty violations correctly (PR-12)."""
+    from backend.app.models.intent import DateWindow, IntentV1, Preferences
+
+    state = GraphState(
+        run_id=uuid.uuid4(),
+        org_id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        intent=IntentV1(
+            city="Tokyo",
+            date_window=DateWindow(start=date(2025, 7, 1), end=date(2025, 7, 5), tz="Asia/Tokyo"),
+            budget_usd_cents=300000,
+            airports=["NRT"],
+            prefs=Preferences(themes=["culture"]),
+        ),
+        answer=AnswerV1(
+            answer_markdown="Perfect Tokyo itinerary",
+            decisions=["Selected highly-rated attractions"],
+            synthesis_source="stub",
+        ),
+        violations=[],  # No violations
+        has_blocking_violations=False,
+        choices=[],
+        citations=[],
+        tool_calls=[],
+    )
+
+    response = build_qa_plan_response_from_state(state)
+
+    # Verify empty violations
+    assert response.violations == []
+    assert response.has_blocking_violations is False
