@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field
 
 from backend.app.models.itinerary import Citation
+from backend.app.models.violations import Violation
 
 if TYPE_CHECKING:
     from backend.app.orchestration.state import GraphState
@@ -59,6 +60,12 @@ class QAPlanResponse(BaseModel):
     decisions: list[str] = Field(
         default_factory=list,
         description="Human-readable rationales for key agent choices",
+    )
+    violations: list[Violation] = Field(
+        default_factory=list, description="Constraint violations detected during verification"
+    )
+    has_blocking_violations: bool = Field(
+        False, description="True if any violations have severity=BLOCKING"
     )
 
 
@@ -193,10 +200,16 @@ def build_qa_plan_response_from_state(state: "GraphState") -> QAPlanResponse:
     # 4. Build tools_used from GraphState.tool_calls (PR-11B)
     tools_used = build_tools_used_from_state(state)
 
+    # 5. Extract violations from GraphState (PR-12)
+    violations = state.violations if state.violations else []
+    has_blocking_violations = state.has_blocking_violations
+
     return QAPlanResponse(
         answer_markdown=answer_markdown,
         itinerary=itinerary,
         citations=citations,
         tools_used=tools_used,
         decisions=decisions,
+        violations=violations,
+        has_blocking_violations=has_blocking_violations,
     )
