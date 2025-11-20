@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: travel_planner_postgres
+    environment:
+      POSTGRES_USER: travel_user
+      POSTGRES_PASSWORD: travel_pass
+      POSTGRES_DB: travel_planner
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travel_user -d travel_planner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: travel_planner_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://travel_user:travel_pass@postgres:5432/travel_planner
+      POSTGRES_URL: postgresql://travel_user:travel_pass@postgres:5432/travel_planner
+      REDIS_URL: redis://localhost:6379/0
+      UI_ORIGIN: http://localhost:8501
+      # Auth keys (placeholder - replace with real keys)
+      JWT_PRIVATE_KEY_PEM: "-----BEGIN RSA PRIVATE KEY-----\\nplaceholder\\n-----END RSA PRIVATE KEY-----"
+      JWT_PUBLIC_KEY_PEM: "-----BEGIN PUBLIC KEY-----\\nplaceholder\\n-----END PUBLIC KEY-----"
+      # External APIs
+      WEATHER_API_KEY: ${WEATHER_API_KEY:-demo_key}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Graph orchestration
+      FANOUT_CAP: 4
+      # Timing buffers (minutes)
+      AIRPORT_BUFFER_MIN: 120
+      TRANSIT_BUFFER_MIN: 15
+      # Cache TTLs (hours)
+      FX_TTL_HOURS: 24
+      WEATHER_TTL_HOURS: 24
+      # Eval reproducibility
+      EVAL_RNG_SEED: 42
+      # Timeouts (milliseconds)
+      TOOL_SOFT_TIMEOUT_MS: 2000
+      TOOL_HARD_TIMEOUT_MS: 4000
+      # Retry jitter (milliseconds)
+      RETRY_JITTER_MIN_MS: 200
+      RETRY_JITTER_MAX_MS: 500
+      # Tool executor
+      TOOL_RETRY_COUNT: 1
+      # Circuit breaker
+      CIRCUIT_BREAKER_FAILURES: 5
+      CIRCUIT_BREAKER_WINDOW_SEC: 60
+      TOOL_BREAKER_FAILURE_THRESHOLD: 5
+      TOOL_BREAKER_WINDOW_SECONDS: 60
+      TOOL_BREAKER_HALF_OPEN_SECONDS: 30
+      # Tool cache TTLs (seconds)
+      WEATHER_TTL_SECONDS: 86400
+      FX_TTL_SECONDS: 86400
+      # Health checks
+      ENABLE_OUTBOUND_HEALTHCHECK: false
+      HEALTH_TOOL_TIMEOUT_MS: 500
+      # Performance budgets (milliseconds)
+      TTFE_BUDGET_MS: 800
+      E2E_P50_BUDGET_MS: 6000
+      E2E_P95_BUDGET_MS: 10000
+      # Rate limiting (requests per minute)
+      AGENT_RUNS_PER_MIN: 5
+      CRUD_OPS_PER_MIN: 60
+      # Idempotency TTL (seconds)
+      IDEMPOTENCY_TTL_SECONDS: 86400
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    container_name: travel_planner_ui
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "8501:8501"
+
+volumes:
+  postgres_data:

@@ -23,6 +23,7 @@ dependencies = [
     "prometheus-client>=0.19.0",
     "httpx>=0.25.0",
     "streamlit>=1.28.0",
+    "openai>=1.0.0",
 ]
 
 [project.optional-dependencies]

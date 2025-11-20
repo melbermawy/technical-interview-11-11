@@ -11,6 +11,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+import os  # noqa: E402
 from datetime import date, datetime  # noqa: E402
 
 import streamlit as st  # noqa: E402
@@ -18,7 +19,7 @@ import streamlit as st  # noqa: E402
 from ui.helpers import call_qa_plan  # noqa: E402
 
 # Configuration
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # Page config
 st.set_page_config(

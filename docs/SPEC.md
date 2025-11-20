@@ -1987,27 +1987,6 @@ DEMO_SCRIPT.md
 
 ---
 
-## Appendix A – Rubric Alignment
-
-This appendix maps the rubric dimensions (100 pts total) to the relevant sections of this specification.
-
-| Dimension | Points | Expectation | Covered in Spec |
-|-----------|--------|-------------|-----------------|
-| **Agentic behavior** | 30 | Clear plan; parallel branches; verification & repair loop; termination criteria; checkpoints. | §5.1 Node Topology, §5.2 Termination/Parallel Branches/Checkpoints, §5.3 Fan-Out Policy, §7 Repair Policy |
-| **Tool integration** | 25 | ≥5 tools; at least one via MCP or MCP-ready; schemas; caching; retries; graceful fallbacks. | §4.1 Tool Inventory, §4.2 MCP Tool and Fallback, §4.3–4.4 Adapter Specifications, §4.2 Global Executor Policy |
-| **Verification quality** | 15 | Budget/feasibility/weather/preferences checks implemented and effective. | §6 Verification Rules (6.1 Budget, 6.2 Feasibility, 6.3 Venue Hours, 6.4 Weather Suitability, 6.5 Preferences) |
-| **Synthesis & citations** | 10 | Coherent itinerary; transparent citations for RAG/tool claims. | §9 Final Response Contract, §12.1 Chunking & Embedding (Citations Path), §3.7 Canonicalization Rules (No evidence → no claim) |
-| **UX & streaming** | 10 | Progress visibility; what-if replanning; readable final output. | §8 Streaming Contract (SSE), §5.6 What-If Replanning, §9 Final Response Contract |
-| **Ops basics** | 5 | Health, metrics, rate limits, idempotency. | §14 Observability, §10.3 Idempotency, §2.2 Component Responsibilities (rate limiting), API health checks |
-| **Auth & access** | 5 | JWT, roles, org scoping; basic lockout and validation. | §11.1 JWT Scheme, §11.2 Login & Lockout, §10.2 Tenancy Enforcement |
-| **Docs & tests** | 5 | Setup clarity; graph diagram; scenario suite; a few unit/integration tests. | §2.1 Component Diagram, §15.2 Scenario Suite and CLI, §23.2 Testing Strategy, §20 File Structure, README references |
-
-**Notes:**
-- **Partial credit strategy**: If time is tight, implement the full agent loop for one destination and two airports with fixtures, and document trade-offs in the README or a TRADEOFFS.md file.
-- All rubric expectations are explicitly addressed in the spec with traceable section references.
-
----
-
 **END OF SPECIFICATION**
 
 **Approvals:**

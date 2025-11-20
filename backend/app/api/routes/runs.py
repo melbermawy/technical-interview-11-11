@@ -156,12 +156,52 @@ async def _run_graph_background(run_id: uuid.UUID, org_id: uuid.UUID, user_id: u
             # Run graph
             final_state = await run_graph_stub(state, session)
 
-            # Update agent_run status
+            # Serialize final state to JSON (PR-13A)
+            final_state_dict = final_state.__dict__.copy()
+            # Convert non-serializable fields
+            final_state_dict["run_id"] = str(final_state.run_id)
+            final_state_dict["org_id"] = str(final_state.org_id)
+            final_state_dict["user_id"] = str(final_state.user_id)
+            # Pydantic models need to be converted to dicts
+            if final_state.intent:
+                final_state_dict["intent"] = final_state.intent.model_dump(mode="json")
+            if final_state.answer:
+                final_state_dict["answer"] = final_state.answer.model_dump(mode="json")
+            if final_state.plan:
+                final_state_dict["plan"] = final_state.plan.model_dump(mode="json")
+            # Lists of Pydantic models
+            final_state_dict["choices"] = (
+                [c.model_dump(mode="json") for c in final_state.choices]
+                if final_state.choices
+                else []
+            )
+            final_state_dict["weather"] = [w.model_dump(mode="json") for w in final_state.weather]
+            final_state_dict["violations"] = [
+                v.model_dump(mode="json") for v in final_state.violations
+            ]
+            final_state_dict["decisions"] = [
+                d.model_dump(mode="json") for d in final_state.decisions
+            ]
+            final_state_dict["citations"] = [
+                c.model_dump(mode="json") for c in final_state.citations
+            ]
+            final_state_dict["doc_matches"] = [
+                d.model_dump(mode="json") for d in final_state.doc_matches
+            ]
+            final_state_dict["tool_calls"] = [
+                t.model_dump(mode="json") for t in final_state.tool_calls
+            ]
+
+            # Update agent_run status and persist final state
             await session.execute(
                 update(AgentRunDB)
                 .where(AgentRunDB.run_id == run_id)
                 .where(AgentRunDB.org_id == org_id)
-                .values(status=final_state.status, completed_at=datetime.utcnow())
+                .values(
+                    status=final_state.status,
+                    completed_at=datetime.utcnow(),
+                    final_state_json=final_state_dict,
+                )
             )
             await session.commit()
 

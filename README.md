@@ -60,6 +60,22 @@ This creates:
 python eval/runner.py
 ```
 
+## Docker Setup
+
+For running the full stack with PostgreSQL in Docker:
+
+```bash
+# Start all services (postgres, backend, UI)
+docker compose up --build
+
+# Access the application
+# - UI: http://localhost:8501
+# - API: http://localhost:8000/docs
+# - Health: http://localhost:8000/health
+```
+
+See [DEMO_DOCKER.md](./DEMO_DOCKER.md) for detailed Docker instructions.
+
 ## Project Structure
 
 ```
@@ -168,18 +184,80 @@ All settings are in [backend/app/config.py](backend/app/config.py). Values are l
 
 See [.env.example](.env.example) for all available settings.
 
+### LLM Behavior
+
+The system supports two modes of operation:
+
+#### Real LLM Mode (with OPENAI_API_KEY)
+When `OPENAI_API_KEY` is set:
+- Uses OpenAI API for plan generation and answer synthesis
+- Generates dynamic responses based on user input
+- Incurs API costs per request
+- Suitable for production and realistic demos
+
+#### Stub/Fixture Mode (without OPENAI_API_KEY)
+When `OPENAI_API_KEY` is **not set** or empty:
+- Uses predefined fixture data for responses
+- Returns deterministic plans and itineraries
+- No external API calls or costs
+- Suitable for CI/CD, testing, and offline development
+
+**Setting the API key:**
+```bash
+# In .env file
+OPENAI_API_KEY=sk-your-api-key-here
+
+# Or via environment variable
+export OPENAI_API_KEY=sk-your-api-key-here
+```
+
 ## Testing
 
+The project supports multiple testing modes:
+
 ### Unit Tests
+Fast tests with no external dependencies:
 - **Validators**: Test contract invariants (reversed dates, empty airports, overlapping slots, etc.)
 - **Tri-state serialization**: Ensure `indoor` and `kid_friendly` round-trip correctly
 - **JSON schema**: Verify exported schemas validate correct payloads
 - **Constants**: Ensure settings are accessible and not duplicated
 - **Non-overlap property**: Property-based tests with random seeds
 
+```bash
+# Run unit tests only
+pytest tests/unit/ -v
+```
+
+### Integration Tests (SQLite)
+Integration tests use SQLite in-memory databases for fast execution without requiring PostgreSQL:
+
+```bash
+# Run all integration tests with SQLite
+DATABASE_URL='sqlite+aiosqlite:///:memory:' pytest tests/integration/ -v
+```
+
+**Note**: Some PostgreSQL-specific features (JSONB operators, ARRAY types) cannot be tested with SQLite.
+
+### PostgreSQL Integration Tests
+For testing PostgreSQL-specific features (marked with `@pytest.mark.postgres`):
+
+```bash
+# Requires real PostgreSQL instance
+DATABASE_URL='postgresql://user:pass@localhost:5432/test_db' pytest -m postgres
+```
+
 ### Eval Tests
 - **Scenario execution**: Verify eval runner runs without errors
 - **Pass/fail reporting**: Ensure scenarios report expected results
+
+```bash
+python eval/runner.py
+```
+
+### Test Markers
+- `@pytest.mark.unit` - Fast unit tests, no DB required
+- `@pytest.mark.integration` - Integration tests using SQLite in-memory DB
+- `@pytest.mark.postgres` - PostgreSQL-specific tests (require real Postgres)
 
 ## Design Decisions
 

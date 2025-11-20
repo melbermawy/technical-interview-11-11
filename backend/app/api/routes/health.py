@@ -70,6 +70,16 @@ async def check_tools(settings: Settings) -> tuple[bool, str]:
         return (False, f"error: {type(e).__name__}")
 
 
+@router.get("/health")
+async def health() -> dict[str, str]:
+    """Simple health check for Docker/k8s.
+
+    Returns:
+        200 OK always (application is running)
+    """
+    return {"status": "ok"}
+
+
 @router.get("/healthz", response_model=None)
 async def healthz() -> dict[str, Any] | Response:
     """Health check endpoint.

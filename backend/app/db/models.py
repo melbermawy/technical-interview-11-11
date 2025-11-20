@@ -218,6 +218,8 @@ class AgentRun(Base):
     cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     trace_id: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
+    # PR-13A: Store final GraphState for QAPlanResponse retrieval
+    final_state_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
